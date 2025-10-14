@@ -7,237 +7,11 @@ from langchain.agents import create_react_agent, AgentExecutor
 from langchain.tools import Tool
 from langchain.prompts import PromptTemplate
 from dotenv import load_dotenv
+from data.learning_topics import LEARNING_TOPICS
 
 load_dotenv()
 
 st.set_page_config(page_title="Математический помощник AI", page_icon="🧮", layout="wide")
-
-# ============= БАЗА ДЛЯ РЕЖИМА "ИЗУЧИТЬ ТЕМУ" =============
-
-LEARNING_TOPICS = {
-    "topic1": {
-        "title": "➕ Сложение обыкновенных дробей",
-        "description": "Научимся складывать дроби с одинаковыми и разными знаменателями",
-        
-        # ЭТАП 1: Квиз-диагностика
-        "quiz": [
-            {
-                "question": "Чему равен знаменатель у дроби 2/3?",
-                "options": ["3", "2", "5", "Не знаю"],
-                "correct": "3",
-                "explanation_template": "Знаменатель дроби — это число под чертой. У дроби 2/3 знаменатель равен 3."
-            },
-            {
-                "question": "Можешь сложить? 1/7 + 2/7 = ?",
-                "options": ["3/14", "7/3", "3/7", "Не могу"],
-                "correct": "3/7",
-                "explanation_template": "Когда знаменатели одинаковые, складываем числители: 1/7 + 2/7 = (1+2)/7 = 3/7"
-            },
-            {
-                "question": "Найди наименьшее общее кратное НОК(12, 15) = ?",
-                "options": ["60", "27", "180", "3"],
-                "correct": "60",
-                "explanation_template": "НОК(12, 15) = 60. Это наименьшее число, которое делится и на 12, и на 15."
-            }
-        ],
-        
-        # Конспекты для повторения
-        "prerequisite_notes": {
-            "НОК": """**Наименьшее общее кратное (НОК)**
-
-НОК двух чисел — это наименьшее число, которое делится на каждое из них.
-
-**Как найти НОК(12, 15):**
-
-1. Разложим числа на множители:
-   - 12 = 2·2·3
-   - 15 = 3·5
-
-2. Множитель 3 есть и там, и там, возьмем его только один раз
-3. Все множители перемножить: НОК(12,15) = 2·2·3·5 = 60
-
-**Запомни:** Знаменатель дроби — это то, что написано под дробной чертой. А над ней — числитель.""",
-            
-            "дроби": """**Что такое дробь?**
-
-На всякий случай напомню: знаменатель дроби — это то, что написано под дробной чертой. А над ней — числитель."""
-        },
-        
-        # ЭТАП 2: Вводная теория
-        "intro_theory": """**Давай я объясню тебе как складывать дроби.**
-
-**Понятие дроби:**
-
-Давай сложим 1/7 и 2/7. Сложи числители, а знаменатель оставь общим:
-
-**1/7 + 2/7 = (1+2)/7 = 3/7**
-
-Это работает, когда знаменатели одинаковые!
-
----
-
-**А теперь попробуй сам:** Сможешь сложить так же 2/9 + 5/9 = ?""",
-        
-        # ЭТАП 3: Основная теория  
-        "main_theory": """**Сложение с общим знаменателем**
-
-Давай мы вместе сложим 1/7 и 2/7. Сложи числители, а знаменатель оставь общим.
-
-**1/7 + 2/7 = (1+2)/7 = 3/7**
-
----
-
-**Сложение с разными знаменателями**
-
-Если знаменатели разные, нужно сначала привести дроби к общему знаменателю!
-
-**Например: 1/7 + 2/5**
-
-Действительно, знаменатель у этих дробей 9. 
-Складываем числители и получаем 7.
-
-**Ответ: 7/9** ✅
-
----
-
-Теперь ты умеешь складывать дроби! Но чтобы тебе не пришлось перемножать большие числа, удобнее приводить дроби к **наименьшему общему знаменателю**.
-
-Например, сложим 9/22 и 7/33. Очень не хочется умножать 9 на 33. Найдем наименьшее общее кратное знаменателей:
-
-**НОК(22,33) = 66**
-
-Общий знаменатель 66. Значит первую дробь надо умножить на 3, а вторую — на 2:
-
-**9/22 + 7/33 = 27/66 + 14/66 = 41/66**""",
-        
-        # ЭТАП 4: Босс
-        "boss": {
-            "intro": "Мы почти у финиша! Реши самостоятельно:",
-            "variants": [
-                {
-                    "variant": 1,
-                    "tasks": [
-                        {
-                            "question": "5/9 + 1/6",
-                            "answer": "13/18",
-                            "hint": "НОК(9, 6) = 18. Приведи дроби к знаменателю 18"
-                        }
-                    ],
-                    "success_message": "Если всё до этого получалось хорошо ✅"
-                },
-                {
-                    "variant": 2,
-                    "tasks": [
-                        {
-                            "question": "5/9 + 1/6",
-                            "answer": "13/18",
-                            "hint": "НОК(9, 6) = 18"
-                        },
-                        {
-                            "question": "НОК(6, 9) = ?",
-                            "answer": "18",
-                            "hint": "Найди наименьшее общее кратное"
-                        }
-                    ],
-                    "success_message": "Если до этого были ошибки ⚠️"
-                }
-            ]
-        },
-        
-        # ЭТАП 5: Финиш
-        "final_summary": """**🎉 Отлично! Теперь ты умеешь складывать дроби!**
-
-**Держи короткий конспект:**
-
-✅ **Найди НОК знаменателей**
-✅ **Приведи дроби к общему знаменателю**  
-✅ **Сложи числители, перепиши общий знаменатель**
-
----
-
-У тебя остались ещё вопросы про сложение дробей? Или могу рассказать другую тему!
-
-**Варианты:**
-- Расскажи про умножение дробей
-- Расскажи, как сравнивать дроби"""
-    }
-}
-
-# ============= БАЗА ЗАДАЧ ДЛЯ ПОШАГОВОГО РЕШЕНИЯ =============
-
-DEFAULT_TASKS = {
-    "task1": {
-        "title": "🍎 Задача про яблоки",
-        "description": "У Маши было 15 яблок. Она отдала 7 яблок своему другу. Сколько яблок осталось у Маши?",
-        "solution_steps": [
-            {
-                "step": 1,
-                "hint": "Давай подумаем: сколько яблок было у Маши в начале?",
-                "answer": "15",
-                "explanation": "Правильно! У Маши было 15 яблок."
-            },
-            {
-                "step": 2,
-                "hint": "Хорошо! А сколько яблок она отдала другу?",
-                "answer": "7",
-                "explanation": "Верно! Она отдала 7 яблок."
-            },
-            {
-                "step": 3,
-                "hint": "Отлично! Теперь скажи: какое действие нужно сделать? Сложение или вычитание?",
-                "answer": ["вычитание", "вычесть", "минус", "-"],
-                "explanation": "Правильно! Нужно вычитание, потому что яблок стало меньше."
-            },
-            {
-                "step": 4,
-                "hint": "Супер! Теперь реши: 15 - 7 = ?",
-                "answer": "8",
-                "explanation": "🎉 Молодец! 15 - 7 = 8. У Маши осталось 8 яблок!"
-            }
-        ],
-        "final_answer": "8 яблок"
-    },
-    "task2": {
-        "title": "📐 Задача про периметр",
-        "description": "Прямоугольник имеет длину 8 см и ширину 5 см. Найди периметр прямоугольника.",
-        "solution_steps": [
-            {
-                "step": 1,
-                "hint": "Сначала вспомним: какая формула периметра прямоугольника?",
-                "answer": ["2*(a+b)", "2(a+b)", "(a+b)*2", "2a+2b"],
-                "explanation": "Отлично! Периметр: P = 2×(длина + ширина)"
-            },
-            {
-                "step": 2,
-                "hint": "Какая длина прямоугольника?",
-                "answer": "8",
-                "explanation": "Верно! Длина = 8 см"
-            },
-            {
-                "step": 3,
-                "hint": "А какая ширина?",
-                "answer": "5",
-                "explanation": "Правильно! Ширина = 5 см"
-            },
-            {
-                "step": 4,
-                "hint": "Посчитай: длина + ширина = ?",
-                "answer": "13",
-                "explanation": "Хорошо! 8 + 5 = 13"
-            },
-            {
-                "step": 5,
-                "hint": "Теперь умножь на 2: 13 × 2 = ?",
-                "answer": "26",
-                "explanation": "🎉 Отлично! Периметр = 26 см!"
-            }
-        ],
-        "final_answer": "26 см"
-    }
-}
-
-if "tasks_database" not in st.session_state:
-    st.session_state.tasks_database = DEFAULT_TASKS.copy()
 
 # ============= МАТЕМАТИЧЕСКИЕ ИНСТРУМЕНТЫ =============
 
@@ -398,39 +172,43 @@ def check_answer_with_llm(user_answer: str, correct_answer, model_choice, yandex
         # Если LLM не сработал, возвращаем результат простой проверки
         return False
 
-def show_solution_schema(task_data):
-    """Показывает схему решения для пошагового режима"""
-    with st.expander("📋 Посмотреть схему решения", expanded=False):
-        st.markdown(f"**Задача:** {task_data['description']}")
-        st.markdown("---")
-        for step in task_data['solution_steps']:
-            st.markdown(f"**Шаг {step['step']}:**")
-            st.markdown(f"- Вопрос: {step['hint']}")
-            answer_text = step['answer'] if isinstance(step['answer'], str) else f"{step['answer'][0]} (или {', '.join(step['answer'][1:])})"
-            st.markdown(f"- Ответ: `{answer_text}`")
-            st.markdown(f"- Объяснение: {step['explanation']}")
-            st.markdown("")
-        st.success(f"**Итоговый ответ:** {task_data['final_answer']}")
-
 def show_learning_schema(topic_data):
     """Показывает схему темы для режима обучения"""
     with st.expander("📋 Посмотреть схему темы", expanded=False):
         st.markdown(f"**Тема:** {topic_data['title']}")
         st.markdown("---")
-        
         st.markdown("### 1️⃣ Квиз-диагностика")
         for i, q in enumerate(topic_data['quiz'], 1):
-            st.markdown(f"**Вопрос {i}:** {q['question']}")
-            st.markdown(f"- Правильный ответ: `{q['correct']}`")
-        
+            # Вопросы могут содержать LaTeX; рендерим их чуть крупнее для читаемости
+            question_md = f"**Вопрос {i}:** {q['question']}"
+            st.markdown(question_md)
+            st.markdown(f"- Правильный ответ: {q['correct']}", unsafe_allow_html=True)
+
         st.markdown("---")
         st.markdown("### 2️⃣ Вводная теория")
-        st.info(topic_data['intro_theory'][:200] + "...")
-        
+        # Показываем полную вводную теорию (поддерживает LaTeX)
+        # Показываем вводную теорию крупнее (поддерживает LaTeX)
+        intro = topic_data.get('intro_theory', '')
+        if intro:
+            st.markdown(intro)
+
         st.markdown("---")
         st.markdown("### 3️⃣ Основная теория")
-        st.info(topic_data['main_theory'][:200] + "...")
-        
+        # Основная теория — тоже крупнее
+        main = topic_data.get('main_theory', '')
+        if main:
+            if isinstance(main, dict):
+                st.markdown(f"**{main.get('title', '')}**")
+                st.markdown(main.get('plan', ''))
+                if 'examples' in main:
+                    for i, ex in enumerate(main['examples'], 1):
+                        st.markdown(f"\n**Пример {i}:**")
+                        st.markdown(ex.get('explanation', ''))
+                        st.markdown(f"*Вопрос: {ex.get('question', '')}*")
+                        st.markdown(f"*Ответ: {ex.get('answer', '')}*")
+            else:
+                st.markdown(main)
+
         st.markdown("---")
         st.markdown("### 4️⃣ Босс (проверка)")
         st.markdown("2 варианта задач")
@@ -439,18 +217,14 @@ def show_learning_schema(topic_data):
         st.markdown("### 5️⃣ Финиш")
         st.success("Короткий конспект")
 
+
 # ============= ИНИЦИАЛИЗАЦИЯ СОСТОЯНИЯ =============
 
 if "mode" not in st.session_state:
-    st.session_state.mode = "free"
+    # Оставляем только режим изучения темы
+    st.session_state.mode = "learn"
 if "messages" not in st.session_state:
     st.session_state.messages = []
-
-# Для пошагового режима
-if "current_task" not in st.session_state:
-    st.session_state.current_task = None
-if "current_step" not in st.session_state:
-    st.session_state.current_step = 0
 
 # Для режима обучения
 if "current_topic" not in st.session_state:
@@ -465,6 +239,10 @@ if "boss_step" not in st.session_state:
     st.session_state.boss_step = 0
 if "waiting_for_quiz_answer" not in st.session_state:
     st.session_state.waiting_for_quiz_answer = False
+if "mistake_topics" not in st.session_state:
+    st.session_state.mistake_topics = []
+if "main_theory_step" not in st.session_state:
+    st.session_state.main_theory_step = 0
 
 # ============= UI =============
 
@@ -477,23 +255,18 @@ st.markdown("---")
 with st.sidebar:
     st.header("⚙️ Настройки")
     
-    # Выбор режима
+    # Фиксированный режим: только изучение темы
     mode = st.radio(
         "🎯 Режим работы:",
-        ["free", "stepbystep", "learn"],
-        format_func=lambda x: {
-            "free": "📝 Свободный ввод",
-            "stepbystep": "👣 Пошаговое решение",
-            "learn": "📚 Изучить тему"
-        }[x],
+        ["learn"],
+        format_func=lambda x: {"learn": "📚 Изучить тему"}[x],
         key="mode_selector"
     )
-    
+
+    # Режим не меняется в рантайме (оставляем сообщения и состояние для режима learning)
     if mode != st.session_state.mode:
         st.session_state.mode = mode
         st.session_state.messages = []
-        st.session_state.current_task = None
-        st.session_state.current_step = 0
         st.session_state.current_topic = None
         st.session_state.learning_stage = "quiz"
         st.session_state.quiz_results = []
@@ -516,58 +289,39 @@ with st.sidebar:
     
     st.markdown("---")
     
-    # РЕЖИМ-ЗАВИСИМЫЙ КОНТЕНТ
-    if st.session_state.mode == "free":
-        st.header("📚 Примеры задач")
-        examples = [
-            ("👋 Привет!", "Привет!"),
-            ("🔢 Вычисли 25 × 4", "Вычисли 25 × 4"),
-            ("📐 Реши x² - 9 = 0", "Реши уравнение x² - 9 = 0"),
-        ]
-        for label, question in examples:
-            if st.button(label, key=f"ex_{label}", use_container_width=True):
-                st.session_state.selected_question = question
-    
-    elif st.session_state.mode == "stepbystep":
-        st.header("📖 Выбери задачу")
-        for task_id, task_data in st.session_state.tasks_database.items():
-            if st.button(task_data["title"], key=f"task_{task_id}", use_container_width=True):
-                st.session_state.current_task = task_id
-                st.session_state.current_step = 0
-                st.session_state.messages = [{
-                    "role": "assistant",
-                    "content": f"**{task_data['title']}**\n\n{task_data['description']}\n\n" +
-                              f"Давай решим вместе! 😊\n\n**Шаг 1:** {task_data['solution_steps'][0]['hint']}"
-                }]
-                st.rerun()
-    
-    else:  # learn режим
-        st.header("📚 Выбери тему")
-        for topic_id, topic_data in LEARNING_TOPICS.items():
-            if st.button(topic_data["title"], key=f"topic_{topic_id}", use_container_width=True):
-                st.session_state.current_topic = topic_id
-                st.session_state.learning_stage = "quiz"
-                st.session_state.quiz_results = []
-                st.session_state.boss_variant = None
-                st.session_state.boss_step = 0
-                st.session_state.waiting_for_quiz_answer = True
-                
-                # Стартуем с квиза
-                quiz = topic_data['quiz'][0]
-                st.session_state.messages = [{
-                    "role": "assistant",
-                    "content": f"**{topic_data['title']}**\n\n{topic_data['description']}\n\n" +
-                              f"Давай сначала проверим, что ты уже знаешь! 🎯\n\n**Вопрос 1:** {quiz['question']}",
-                    "quiz_options": quiz['options']  # Сохраняем варианты ответов
-                }]
-                st.rerun()
+    # РЕЖИМ-ЗАВИСИМЫЙ КОНТЕНТ: только изучение темы
+    st.header("📚 Выбери тему")
+    for topic_id, topic_data in LEARNING_TOPICS.items():
+        if st.button(topic_data['title'], key=f"topic_{topic_id}", use_container_width=True):
+            st.session_state.current_topic = topic_id
+            st.session_state.learning_stage = "quiz"
+            st.session_state.quiz_results = []
+            st.session_state.boss_variant = None
+            st.session_state.boss_step = 0
+            st.session_state.waiting_for_quiz_answer = True
+            
+            # Стартуем с квиза
+            quiz = topic_data['quiz'][0]
+            plan = """Вот наш план:
+- Задам 3 вопроса, чтобы определить твой уровень;
+- Объясню теорию (можешь задавать вопросы!);
+- Дам решить задачу самому;
+- Пришлю короткий конспект!
+
+Готов? Поехали! 🚀
+"""
+            st.session_state.messages = [{
+                "role": "assistant",
+                "content": f"**{topic_data['title']}**\n\n{topic_data['description']}\n\n{plan}\n\n" +
+                          f"Давай сначала проверим, что ты уже знаешь! 🎯\n\n**Вопрос 1:** {quiz['question']}",
+                "quiz_options": quiz['options']  # Сохраняем варианты ответов
+            }]
+            st.rerun()
     
     st.markdown("---")
     
     if st.button("🗑️ Начать заново", use_container_width=True):
         st.session_state.messages = []
-        st.session_state.current_task = None
-        st.session_state.current_step = 0
         st.session_state.current_topic = None
         st.session_state.learning_stage = "quiz"
         st.session_state.quiz_results = []
@@ -585,29 +339,15 @@ if not current_key:
     st.info("💡 Для начала получите бесплатный ключ Gemini")
     st.stop()
 
-# Инициализация агента (только для свободного режима)
-if st.session_state.mode == "free":
-    try:
-        agent_executor = init_bot(model_choice, yandex_api_key, gemini_api_key)
-    except Exception as e:
-        st.error(f"❌ Ошибка: {e}")
-        st.stop()
-
 # ============= ОСНОВНОЙ ИНТЕРФЕЙС =============
 
 # Показываем режим
 mode_badges = {
-    "free": "📝 Свободный ввод",
-    "stepbystep": "👣 Пошаговое решение",
     "learn": "📚 Изучить тему"
 }
 st.info(f"**Текущий режим:** {mode_badges[st.session_state.mode]}")
 
 # СХЕМЫ
-if st.session_state.mode == "stepbystep" and st.session_state.current_task:
-    task_data = st.session_state.tasks_database[st.session_state.current_task]
-    show_solution_schema(task_data)
-
 if st.session_state.mode == "learn" and st.session_state.current_topic:
     topic_data = LEARNING_TOPICS[st.session_state.current_topic]
     show_learning_schema(topic_data)
@@ -615,14 +355,15 @@ if st.session_state.mode == "learn" and st.session_state.current_topic:
 # История сообщений
 for idx, message in enumerate(st.session_state.messages):
     with st.chat_message(message["role"]):
-        st.markdown(message["content"])
-        
+        # Рендерим содержимое сообщения, поддерживая крупный LaTeX
+        st.markdown(message["content"], unsafe_allow_html=True)
+
         # Если это сообщение с вариантами ответов квиза и оно последнее
-        if (message["role"] == "assistant" and 
-            "quiz_options" in message and 
+        if (message["role"] == "assistant" and
+            "quiz_options" in message and
             idx == len(st.session_state.messages) - 1 and
             st.session_state.waiting_for_quiz_answer):
-            
+
             st.markdown("**Выбери ответ:**")
             cols = st.columns(2)
             for i, option in enumerate(message["quiz_options"]):
@@ -632,6 +373,17 @@ for idx, message in enumerate(st.session_state.messages):
                         st.session_state.quiz_answer = option
                         st.session_state.waiting_for_quiz_answer = False
                         st.rerun()
+
+        # Показываем кнопку перехода к теории после ответа на вопрос (если это последнее сообщение)
+        if (message["role"] == "assistant" and
+            "show_theory_button" in message and
+            idx == len(st.session_state.messages) - 1):
+
+            topic_data = LEARNING_TOPICS[st.session_state.current_topic]
+            theory_button_text = f"🧠 {topic_data['title']}"
+            if st.button(theory_button_text, key=f"theory_after_answer_{idx}", use_container_width=True):
+                st.session_state.selected_question = "теория"
+                st.rerun()
 
 # Обработка ответа из кнопки квиза
 if "quiz_answer" in st.session_state:
@@ -649,20 +401,30 @@ if "quiz_answer" in st.session_state:
             if stage == "quiz":
                 quiz_index = len(st.session_state.quiz_results)
                 quiz_q = topic['quiz'][quiz_index]
-                is_correct = check_answer_with_llm(
-                    question, 
-                    quiz_q['correct'],
-                    model_choice,
-                    yandex_api_key,
-                    gemini_api_key,
-                    question_context=quiz_q['question']
-                )
-                st.session_state.quiz_results.append(is_correct)
-                
-                if is_correct:
-                    response = f"✅ Правильно!\n\n"
+
+                # Проверяем, выбрал ли пользователь "Не знаю"
+                is_dont_know = "не знаю" in question.lower()
+
+                if is_dont_know:
+                    # Отмечаем как неправильный ответ
+                    st.session_state.quiz_results.append(False)
+                    response = f"Ничего страшного! 😊 {quiz_q['explanation_template']}\n\n"
                 else:
-                    response = f"❌ Не совсем. {quiz_q['explanation_template']}\n\n"
+                    # Обычная проверка ответа
+                    is_correct = check_answer_with_llm(
+                        question,
+                        quiz_q['correct'],
+                        model_choice,
+                        yandex_api_key,
+                        gemini_api_key,
+                        question_context=quiz_q['question']
+                    )
+                    st.session_state.quiz_results.append(is_correct)
+
+                    if is_correct:
+                        response = f"✅ Правильно!\n\n"
+                    else:
+                        response = f"❌ Не совсем. {quiz_q['explanation_template']}\n\n"
                 
                 # Следующий вопрос квиза или завершение
                 next_quiz_index = quiz_index + 1
@@ -681,394 +443,582 @@ if "quiz_answer" in st.session_state:
                     correct_count = sum(st.session_state.quiz_results)
                     if correct_count == len(topic['quiz']):
                         st.session_state.learning_stage = "main_theory"
-                        response += f"\n\n🎉 Все правильно! Переходим к теории.\n\n---\n\n{topic['main_theory']}"
+                        st.session_state.main_theory_step = 0
+
+                        # Формируем ответ с планом и первым примером
+                        main_theory = topic['main_theory']
+                        if isinstance(main_theory, dict):
+                            response += f"\n\n🎉 Все правильно! Переходим к основной теории.\n\n---\n\n**{main_theory['title']}**\n\n{main_theory['plan']}\n\n---\n\n"
+                            if main_theory['examples']:
+                                first_example = main_theory['examples'][0]
+                                response += f"{first_example['explanation']}\n\n**Задание:** {first_example['question']}"
+                        else:
+                            response += f"\n\n🎉 Все правильно! Переходим к теории.\n\n---\n\n{main_theory}"
+
+                        st.session_state.messages.append({"role": "assistant", "content": response})
+                        st.markdown(response)
                     else:
                         st.session_state.learning_stage = "choice"
-                        response += "\n\nНе все ответы правильные. Повторим?\n\n- Напиши **'Да'** - покажу конспект\n- Напиши **'Нет'** - сразу к теории"
-                    
-                    st.markdown(response)
-                    st.session_state.messages.append({"role": "assistant", "content": response})
+                        response += "\n\nНе все ответы правильные. Что делаем дальше?"
+                        st.session_state.messages.append({"role": "assistant", "content": response})
+                        st.markdown(response)
     
     st.rerun()
 
-# Обработка обычного ввода
+# ============= ОБРАБОТКА QUICK REPLY КНОПОК =============
+# Сначала проверяем, была ли нажата кнопка в предыдущем цикле
 if "selected_question" in st.session_state:
     question = st.session_state.selected_question
     del st.session_state.selected_question
-else:
-    question = st.chat_input("Напиши свой вопрос или ответ...")
+    show_user_message = False
 
-if question:
-    st.session_state.messages.append({"role": "user", "content": question})
-    with st.chat_message("user"):
-        st.markdown(question)
-    
+    # Обрабатываем вопрос сразу
     with st.chat_message("assistant"):
         with st.spinner("🤔 Думаю..."):
-            
-            if st.session_state.mode == "free":
-                # ===== РЕЖИМ СВОБОДНОГО ВВОДА =====
-                try:
-                    history = "\n".join([
-                        f"User: {m['content']}" if m['role'] == 'user' else f"Assistant: {m['content']}"
-                        for m in st.session_state.messages[-6:]
-                    ])
-                    
-                    response = agent_executor.invoke({"input": question, "chat_history": history})
-                    answer = response['output']
-                    st.markdown(answer)
-                    st.session_state.messages.append({"role": "assistant", "content": answer})
-                    
-                except Exception as e:
-                    error_msg = f"❌ Ошибка: {str(e)}"
-                    st.error(error_msg)
-                    st.session_state.messages.append({"role": "assistant", "content": error_msg})
-            
-            elif st.session_state.mode == "stepbystep":
-                # ===== РЕЖИМ ПОШАГОВОГО РЕШЕНИЯ =====
-                if st.session_state.current_task is None:
-                    response = "Пожалуйста, выбери задачу из списка слева! 👈"
-                    st.markdown(response)
-                    st.session_state.messages.append({"role": "assistant", "content": response})
-                else:
-                    task = st.session_state.tasks_database[st.session_state.current_task]
-                    current_step_num = st.session_state.current_step
-                    
-                    if current_step_num >= len(task["solution_steps"]):
-                        # Задача решена - свободный диалог
-                        try:
-                            history = "\n".join([
-                                f"User: {m['content']}" if m['role'] == 'user' else f"Assistant: {m['content']}"
-                                for m in st.session_state.messages[-6:]
-                            ])
-                            agent_executor = init_bot(model_choice, yandex_api_key, gemini_api_key)
-                            response_obj = agent_executor.invoke({"input": question, "chat_history": history})
-                            response = response_obj['output']
-                            response += "\n\n---\n\n💡 Хочешь решить ещё задачу? Выбери её слева!"
-                        except:
-                            response = f"🎉 Отлично! Мы решили задачу!\n\n**Ответ:** {task['final_answer']}\n\nХочешь решить еще одну? Выбери слева!"
-                        
+            if st.session_state.current_topic is None:
+                response = "Пожалуйста, выбери тему из списка слева! 👈"
+                st.markdown(response)
+                st.session_state.messages.append({"role": "assistant", "content": response})
+            else:
+                topic = LEARNING_TOPICS[st.session_state.current_topic]
+                stage = st.session_state.learning_stage
+
+                if stage == "choice":
+                    # Обработка выбора после квиза
+                    if "разбор" in question.lower():
+                        # Собираем темы, по которым были ошибки
+                        incorrect_topics = []
+                        for i, result in enumerate(st.session_state.quiz_results):
+                            if not result:
+                                topic_key = topic['quiz'][i].get('topic_key')
+                                if topic_key and topic_key in topic['prerequisite_notes']:
+                                    incorrect_topics.append(topic_key)
+
+                        # Убираем дубликаты, сохраняя порядок
+                        unique_topics = list(dict.fromkeys(incorrect_topics))
+
+                        if unique_topics:
+                            # Сохраняем темы для показа кнопок
+                            st.session_state.mistake_topics = unique_topics
+                            response = "📖 **Выбери тему для разбора:**\n\nНажми на кнопку ниже, чтобы изучить конспект по этой теме."
+                            st.session_state.learning_stage = "waiting_for_topic_selection"
+                            st.markdown(response)
+                            st.session_state.messages.append({"role": "assistant", "content": response, "show_theory_button": True})
+                        else:
+                            response = "Отлично! У тебя нет ошибок в темах. Переходим к основной теории!"
+                            st.session_state.learning_stage = "main_theory"
+                            st.session_state.main_theory_step = 0
+
+                            main_theory = topic['main_theory']
+                            if isinstance(main_theory, dict):
+                                response += f"\n\n---\n\n**{main_theory['title']}**\n\n{main_theory['plan']}\n\n---\n\n"
+                                if main_theory['examples']:
+                                    first_example = main_theory['examples'][0]
+                                    response += f"{first_example['explanation']}\n\n**Задание:** {first_example['question']}"
+                            else:
+                                response += f"\n\n---\n\n{main_theory}"
+                            st.markdown(response)
+                            st.session_state.messages.append({"role": "assistant", "content": response})
+
+                    elif "теория" in question.lower():
+                        response = "Хорошо! Переходим к основной теории."
+                        st.session_state.learning_stage = "main_theory"
+                        st.session_state.main_theory_step = 0
+
+                        main_theory = topic['main_theory']
+                        if isinstance(main_theory, dict):
+                            response += f"\n\n---\n\n**{main_theory['title']}**\n\n{main_theory['plan']}\n\n---\n\n"
+                            if main_theory['examples']:
+                                first_example = main_theory['examples'][0]
+                                response += f"{first_example['explanation']}\n\n**Задание:** {first_example['question']}"
+                        else:
+                            response += f"\n\n---\n\n{main_theory}"
                         st.markdown(response)
                         st.session_state.messages.append({"role": "assistant", "content": response})
                     else:
-                        step = task["solution_steps"][current_step_num]
-                        
-                        # Ключевые слова для запроса помощи
-                        help_keywords = ["помощь", "помоги", "не понимаю", "не знаю", "объясни", 
-                                       "подсказка", "что делать", "как решить", "не получается"]
-                        asking_for_help = any(keyword in question.lower() for keyword in help_keywords)
-                        
-                        # Используем LLM для проверки ответа
-                        is_correct = check_answer_with_llm(
-                            question, 
-                            step["answer"], 
-                            model_choice, 
-                            yandex_api_key, 
-                            gemini_api_key,
-                            question_context=step['hint']
-                        )
-                        
-                        if is_correct:
-                            # Правильный ответ
-                            response = f"✅ {step['explanation']}\n\n"
-                            st.session_state.current_step += 1
-                            
-                            if st.session_state.current_step < len(task["solution_steps"]):
-                                next_step = task["solution_steps"][st.session_state.current_step]
-                                response += f"**Шаг {next_step['step']}:** {next_step['hint']}"
-                            else:
-                                response += f"🎉 Молодец! Ты решил задачу!\n\n**Ответ:** {task['final_answer']}"
-                            
-                            st.markdown(response)
-                            st.session_state.messages.append({"role": "assistant", "content": response})
-                        
-                        elif asking_for_help:
-                            # Ученик просит помощь
-                            response = f"Конечно, помогу! 😊\n\n**Подсказка:** {step['hint']}\n\n"
-                            
-                            # Даём дополнительное объяснение
-                            answer_str = step["answer"] if isinstance(step["answer"], str) else step["answer"][0]
-                            
-                            if "сколько" in step['hint'].lower() or "какая" in step['hint'].lower() or "какое" in step['hint'].lower():
-                                response += f"Смотри внимательно на условие задачи! 👀"
-                            else:
-                                response += f"Попробуй подумать ещё раз, у тебя получится! 💪"
-                            
-                            st.markdown(response)
-                            st.session_state.messages.append({"role": "assistant", "content": response})
-                        
+                        response = "Используй кнопки 'Разобрать ошибки' или 'К теории'."
+                        st.markdown(response)
+                        st.session_state.messages.append({"role": "assistant", "content": response})
+
+                elif stage == "waiting_for_topic_selection":
+                    # Пользователь выбрал тему для разбора
+                    # Проверяем, есть ли эта тема в prerequisite_notes
+                    if question in topic['prerequisite_notes']:
+                        note_data = topic['prerequisite_notes'][question]
+                        response = f"{note_data['title']}\n\n{note_data['content']}\n\n---\n\n"
+
+                        # Убираем просмотренную тему из списка
+                        st.session_state.mistake_topics.remove(question)
+
+                        # Если еще есть темы для разбора
+                        if st.session_state.mistake_topics:
+                            response += "Выбери следующую тему для продолжения."
+                            # Остаемся на этапе waiting_for_topic_selection
                         else:
-                            # Проверяем, это попытка ответа или вопрос для обсуждения
-                            answer_str = step["answer"] if isinstance(step["answer"], str) else step["answer"][0]
-                            
-                            # Признаки попытки ответить (короткий ответ, есть цифры или ключевые слова из ожидаемого ответа)
-                            is_short = len(question.split()) <= 5
-                            has_numbers = any(char.isdigit() for char in question)
-                            has_math_words = any(word in question.lower() for word in ["плюс", "минус", "умножить", "разделить", "равно", "вычитание", "сложение"])
-                            
-                            is_attempt = is_short and (has_numbers or has_math_words)
-                            
-                            if is_attempt:
-                                # Это похоже на попытку ответить
-                                response = f"🤔 Не совсем так. Давай подумаем вместе!\n\n**Подсказка:** {step['hint']}\n\nПопробуй ещё раз! Если нужна помощь, просто напиши 'помоги' 😊"
-                                st.markdown(response)
-                                st.session_state.messages.append({"role": "assistant", "content": response})
-                            else:
-                                # Это вопрос для обсуждения - используем агента
-                                try:
-                                    history = "\n".join([
-                                        f"User: {m['content']}" if m['role'] == 'user' else f"Assistant: {m['content']}"
-                                        for m in st.session_state.messages[-6:]
-                                    ])
-                                    
-                                    # Контекст задачи для агента
-                                    context = f"Мы решаем задачу: {task['description']}. Сейчас на шаге {current_step_num + 1}: {step['hint']}"
-                                    
-                                    agent_executor = init_bot(model_choice, yandex_api_key, gemini_api_key)
-                                    response_obj = agent_executor.invoke({
-                                        "input": f"Контекст: {context}\n\nВопрос ученика: {question}\n\nОтветь дружелюбно и понятно, но не давай прямой ответ на текущий шаг.", 
-                                        "chat_history": history
-                                    })
-                                    response = response_obj['output']
-                                    response += f"\n\n---\n\n💡 Теперь попробуй ответить на наш вопрос:\n\n**Шаг {step['step']}:** {step['hint']}"
-                                except Exception as e:
-                                    response = f"Интересный вопрос! 😊\n\nДавай я помогу: {step['explanation']}\n\n**Теперь попробуй:** {step['hint']}"
-                                
-                                st.markdown(response)
-                                st.session_state.messages.append({"role": "assistant", "content": response})
-            
-            else:  # learn режим
-                # ===== РЕЖИМ ИЗУЧЕНИЯ ТЕМЫ =====
-                if st.session_state.current_topic is None:
-                    response = "Пожалуйста, выбери тему из списка слева! 👈"
+                            response += f"Если вопросов не осталось, то перейдем к разбору основной темы: **{topic['title']}**"
+                            st.session_state.learning_stage = "waiting_after_notes"
+                    else:
+                        response = "Тема не найдена. Выбери тему из списка выше."
+
                     st.markdown(response)
-                    st.session_state.messages.append({"role": "assistant", "content": response})
-                else:
-                    topic = LEARNING_TOPICS[st.session_state.current_topic]
-                    stage = st.session_state.learning_stage
-                    
-                    # Функция для обработки отвлечённого вопроса
-                    def handle_offtopic_question(question, current_hint):
-                        try:
-                            # Используем агента для краткого ответа
-                            history = "\n".join([
-                                f"User: {m['content']}" if m['role'] == 'user' else f"Assistant: {m['content']}"
-                                for m in st.session_state.messages[-4:]
-                            ])
-                            agent_executor = init_bot(model_choice, yandex_api_key, gemini_api_key)
-                            response_obj = agent_executor.invoke({
-                                "input": f"Ответь КРАТКО (максимум 2 предложения): {question}", 
-                                "chat_history": history
-                            })
-                            brief_answer = response_obj['output']
-                            return f"{brief_answer}\n\n---\n\n💡 А теперь давай вернёмся к нашему заданию!\n\n{current_hint}"
-                        except:
-                            return f"Интересный вопрос! 😊 Но давай сначала закончим текущее задание, а потом я отвечу подробнее!\n\n{current_hint}"
-                    
-                    if stage == "quiz":
-                        # Обработка квиза (когда пользователь ввел текст вместо кнопки)
-                        quiz_index = len(st.session_state.quiz_results)
-                        
-                        if quiz_index >= len(topic['quiz']):
-                            # Квиз уже завершен, переходим дальше
-                            correct_count = sum(st.session_state.quiz_results)
-                            if correct_count == len(topic['quiz']):
-                                st.session_state.learning_stage = "main_theory"
-                                response = f"🎉 Отлично! Переходим к теории.\n\n---\n\n{topic['main_theory']}"
+                    st.session_state.messages.append({"role": "assistant", "content": response, "show_theory_button": True})
+
+                elif stage == "waiting_after_notes":
+                    if "теория" in question.lower():
+                        response = f"Отлично! Переходим к вводной теории.\n\n---\n\n{topic['intro_theory']}"
+                        st.session_state.learning_stage = "intro_theory"
+                        st.markdown(response)
+                        st.session_state.messages.append({"role": "assistant", "content": response})
+
+    st.rerun()
+
+# ============= QUICK REPLY КНОПКИ =============
+# Показываем постоянные кнопки навигации сверху окна ввода
+if st.session_state.current_topic:
+    stage = st.session_state.learning_stage
+
+    # Этап "choice" - выбор между разбором ошибок и теорией
+    if stage == "choice":
+        st.markdown("**Быстрые действия:**")
+        topic_data = LEARNING_TOPICS[st.session_state.current_topic]
+        cols = st.columns(2)
+        with cols[0]:
+            if st.button("📖 Разобрать ошибки", key="quick_mistakes", use_container_width=True):
+                st.session_state.selected_question = "разбор"
+                st.rerun()
+        with cols[1]:
+            # Используем название темы для кнопки
+            theory_button_text = f"🧠 {topic_data['title']}"
+            if st.button(theory_button_text, key="quick_theory", use_container_width=True):
+                st.session_state.selected_question = "теория"
+                st.rerun()
+
+    # Этап "waiting_for_topic_selection" - показываем кнопки тем
+    elif stage == "waiting_for_topic_selection":
+        if "mistake_topics" in st.session_state and st.session_state.mistake_topics:
+            st.markdown("**Темы, с которыми есть проблемы:**")
+            topic_data = LEARNING_TOPICS[st.session_state.current_topic]
+
+            # Определяем количество столбцов (1-2 в зависимости от количества тем)
+            num_topics = len(st.session_state.mistake_topics)
+            cols = st.columns(min(num_topics, 2))
+
+            for idx, topic_key in enumerate(st.session_state.mistake_topics):
+                note_data = topic_data['prerequisite_notes'].get(topic_key)
+                if note_data:
+                    col_idx = idx % 2
+                    with cols[col_idx]:
+                        if st.button(note_data['title'], key=f"topic_btn_{topic_key}", use_container_width=True):
+                            st.session_state.selected_question = topic_key
+                            st.rerun()
+
+# Обработка обычного ввода с клавиатуры
+question = st.chat_input("Напиши свой вопрос или ответ...")
+show_user_message = True
+
+if question:
+    # Сохраняем сообщение пользователя только если это не саджест
+    if show_user_message:
+        st.session_state.messages.append({"role": "user", "content": question})
+        with st.chat_message("user"):
+            st.markdown(question)
+
+    with st.chat_message("assistant"):
+        with st.spinner("🤔 Думаю..."):
+            # Обрабатываем только режим learning
+            if st.session_state.current_topic is None:
+                response = "Пожалуйста, выбери тему из списка слева! 👈"
+                st.markdown(response)
+                st.session_state.messages.append({"role": "assistant", "content": response})
+            else:
+                topic = LEARNING_TOPICS[st.session_state.current_topic]
+                stage = st.session_state.learning_stage
+
+                # Функция для обработки отвлечённого вопроса (без создания глобального агента)
+                def handle_offtopic_question(_user_question, current_hint):
+                    # Возвращаем короткий ответ без вызова внешнего агента
+                    return f"Интересный вопрос! 😊 Но давай сначала закончим текущее задание.\n\n{current_hint}"
+
+                if stage == "quiz":
+                    # Обработка квиза (когда пользователь ввел текст вместо кнопки)
+                    quiz_index = len(st.session_state.quiz_results)
+
+                    if quiz_index >= len(topic['quiz']):
+                        # Квиз уже завершен, переходим дальше
+                        correct_count = sum(st.session_state.quiz_results)
+                        if correct_count == len(topic['quiz']):
+                            st.session_state.learning_stage = "main_theory"
+                            st.session_state.main_theory_step = 0
+
+                            # Формируем ответ с планом и первым примером
+                            main_theory = topic['main_theory']
+                            if isinstance(main_theory, dict):
+                                response = f"🎉 Отлично! Переходим к основной теории.\n\n---\n\n**{main_theory['title']}**\n\n{main_theory['plan']}\n\n---\n\n"
+                                if main_theory['examples']:
+                                    first_example = main_theory['examples'][0]
+                                    response += f"{first_example['explanation']}\n\n**Задание:** {first_example['question']}"
                             else:
-                                st.session_state.learning_stage = "choice"
-                                response = "\n\nНе все ответы правильные. Повторим?\n\n- Напиши **'Да'** - покажу конспект\n- Напиши **'Нет'** - сразу к теории"
-                            st.markdown(response)
-                            st.session_state.messages.append({"role": "assistant", "content": response})
+                                response = f"🎉 Отлично! Переходим к теории.\n\n---\n\n{main_theory}"
                         else:
-                            quiz_q = topic['quiz'][quiz_index]
-                            
-                            # Проверяем, является ли это ответом на вопрос квиза
-                            is_quiz_answer = any(opt.lower().replace(" ", "") in question.lower().replace(" ", "") 
+                            st.session_state.learning_stage = "choice"
+                            response = "\n\nНе все ответы правильные. Повторим?\n\n- Напиши **'Да'** - покажу конспект\n- Напиши **'Нет'** - сразу к теории"
+                        st.markdown(response)
+                        st.session_state.messages.append({"role": "assistant", "content": response})
+                    else:
+                        quiz_q = topic['quiz'][quiz_index]
+
+                        # Сначала проверяем "Не знаю"
+                        is_dont_know = "не знаю" in question.lower()
+
+                        if is_dont_know:
+                            # Отмечаем как неправильный ответ
+                            st.session_state.quiz_results.append(False)
+                            response = f"Ничего страшного! 😊 {quiz_q['explanation_template']}\n\n"
+                        else:
+                            # Проверяем с помощью LLM - может это правильный ответ
+                            is_correct = check_answer_with_llm(
+                                question,
+                                quiz_q['correct'],
+                                model_choice,
+                                yandex_api_key,
+                                gemini_api_key,
+                                question_context=quiz_q['question']
+                            )
+
+                            # Также проверяем, похоже ли это на попытку ответить
+                            is_quiz_answer = any(opt.lower().replace(" ", "") in question.lower().replace(" ", "")
                                                for opt in quiz_q['options'])
-                            
-                            if is_quiz_answer:
-                                # Это ответ на квиз - используем LLM проверку
-                                is_correct = check_answer_with_llm(
-                                    question, 
-                                    quiz_q['correct'],
-                                    model_choice,
-                                    yandex_api_key,
-                                    gemini_api_key,
-                                    question_context=quiz_q['question']
-                                )
+
+                            # Если ответ правильный ИЛИ это один из вариантов квиза, обрабатываем как ответ
+                            if is_correct or is_quiz_answer:
                                 st.session_state.quiz_results.append(is_correct)
-                                
+
                                 if is_correct:
                                     response = f"✅ Правильно!\n\n"
                                 else:
                                     response = f"❌ Не совсем. {quiz_q['explanation_template']}\n\n"
-                                
-                                # Следующий вопрос
-                                next_quiz_index = quiz_index + 1
-                                if next_quiz_index < len(topic['quiz']):
-                                    next_q = topic['quiz'][next_quiz_index]
-                                    response += f"**Вопрос {next_quiz_index + 1}:** {next_q['question']}"
-                                    st.session_state.waiting_for_quiz_answer = True
-                                    st.markdown(response)
-                                    st.session_state.messages.append({
-                                        "role": "assistant", 
-                                        "content": response,
-                                        "quiz_options": next_q['options']
-                                    })
-                                else:
-                                    # Квиз завершен
-                                    correct_count = sum(st.session_state.quiz_results)
-                                    if correct_count == len(topic['quiz']):
-                                        st.session_state.learning_stage = "main_theory"
-                                        response += f"\n\n🎉 Все правильно! Переходим к теории.\n\n---\n\n{topic['main_theory']}"
-                                    else:
-                                        st.session_state.learning_stage = "choice"
-                                        response += "\n\nНе все ответы правильные. Повторим?\n\n- Напиши **'Да'** - покажу конспект\n- Напиши **'Нет'** - сразу к теории"
-                                    st.markdown(response)
-                                    st.session_state.messages.append({"role": "assistant", "content": response})
                             else:
                                 # Это отвлеченный вопрос
                                 current_hint = f"**Вопрос {quiz_index + 1}:** {quiz_q['question']}"
                                 response = handle_offtopic_question(question, current_hint)
                                 st.markdown(response)
                                 st.session_state.messages.append({
-                                    "role": "assistant", 
+                                    "role": "assistant",
                                     "content": response,
                                     "quiz_options": quiz_q['options']
                                 })
                                 st.session_state.waiting_for_quiz_answer = True
-                    
-                    elif stage == "choice":
-                        # Обработка выбора после квиза
-                        if "да" in question.lower() or "вспомн" in question.lower():
-                            response = f"📖 **Конспект для повторения:**\n\n{topic['prerequisite_notes']['НОК']}\n\n---\n\nГотов? Напиши **'Понятно'** и переходим дальше!"
+                                # Выходим из обработки, чтобы не продолжить с неправильной логикой
+                                st.rerun()
+
+                        # Если мы здесь, значит был ответ на квиз
+                        # Следующий вопрос
+                        next_quiz_index = quiz_index + 1
+                        if next_quiz_index < len(topic['quiz']):
+                            next_q = topic['quiz'][next_quiz_index]
+                            response += f"**Вопрос {next_quiz_index + 1}:** {next_q['question']}"
+                            st.session_state.waiting_for_quiz_answer = True
+                            st.markdown(response)
+                            st.session_state.messages.append({
+                                "role": "assistant",
+                                "content": response,
+                                "quiz_options": next_q['options']
+                            })
+                            st.rerun()  # Перезагружаем чтобы показать кнопки
+                        else:
+                            # Квиз завершен
+                            correct_count = sum(st.session_state.quiz_results)
+                            if correct_count == len(topic['quiz']):
+                                st.session_state.learning_stage = "main_theory"
+                                st.session_state.main_theory_step = 0
+
+                                # Формируем ответ с планом и первым примером
+                                main_theory = topic['main_theory']
+                                if isinstance(main_theory, dict):
+                                    response += f"\n\n🎉 Все правильно! Переходим к основной теории.\n\n---\n\n**{main_theory['title']}**\n\n{main_theory['plan']}\n\n---\n\n"
+                                    if main_theory['examples']:
+                                        first_example = main_theory['examples'][0]
+                                        response += f"{first_example['explanation']}\n\n**Задание:** {first_example['question']}"
+                                else:
+                                    response += f"\n\n🎉 Все правильно! Переходим к теории.\n\n---\n\n{main_theory}"
+                            else:
+                                st.session_state.learning_stage = "choice"
+                                response += "\n\nНе все ответы правильные. Повторим?\n\n- Напиши **'Да'** - покажу конспект\n- Напиши **'Нет'** - сразу к теории"
+                            st.markdown(response)
+                            st.session_state.messages.append({"role": "assistant", "content": response})
+                            st.rerun()  # Перезагружаем чтобы обновить интерфейс
+
+                elif stage == "choice":
+                    # Обработка выбора после квиза
+                    if "разбор" in question.lower():
+                        # Собираем темы, по которым были ошибки
+                        incorrect_topics = []
+                        for i, result in enumerate(st.session_state.quiz_results):
+                            if not result:
+                                topic_key = topic['quiz'][i].get('topic_key')
+                                if topic_key:
+                                    incorrect_topics.append(topic_key)
+
+                        # Формируем конспект
+                        notes_to_show = ""
+                        for key in set(incorrect_topics):
+                            note = topic['prerequisite_notes'].get(key)
+                            if note:
+                                notes_to_show += f"- {note}\n"
+
+                        if notes_to_show:
+                            response = f"📖 **Конспект для повторения:**\n\n{notes_to_show}\n\n---\n\nГотов? Напиши **'Понятно'** и переходим дальше!"
                             st.session_state.learning_stage = "waiting_after_notes"
-                        elif "нет" in question.lower() or "объясн" in question.lower():
-                            response = f"Хорошо! Переходим к вводной теории.\n\n---\n\n{topic['intro_theory']}"
-                            st.session_state.learning_stage = "intro_theory"
                         else:
-                            # Отвлеченный вопрос
-                            response = handle_offtopic_question(question, "Повторим темы?\n\n- Напиши **'Да'** - покажу конспект\n- Напиши **'Нет'** - сразу к теории")
-                        
-                        st.markdown(response)
-                        st.session_state.messages.append({"role": "assistant", "content": response})
-                    
-                    elif stage == "waiting_after_notes":
-                        # После просмотра конспекта
-                        if "понятно" in question.lower() or "готов" in question.lower() or "да" in question.lower():
-                            response = f"Отлично! Переходим к вводной теории.\n\n---\n\n{topic['intro_theory']}"
-                            st.session_state.learning_stage = "intro_theory"
+                            response = "Ошибок в темах с конспектами не найдено. Переходим к основной теории!"
+                            st.session_state.learning_stage = "main_theory"
+                            st.session_state.main_theory_step = 0
+
+                            main_theory = topic['main_theory']
+                            if isinstance(main_theory, dict):
+                                response += f"\n\n---\n\n**{main_theory['title']}**\n\n{main_theory['plan']}\n\n---\n\n"
+                                if main_theory['examples']:
+                                    first_example = main_theory['examples'][0]
+                                    response += f"{first_example['explanation']}\n\n**Задание:** {first_example['question']}"
+                            else:
+                                response += f"\n\n---\n\n{main_theory}"
+
+                    elif "теория" in question.lower():
+                        response = "Хорошо! Переходим к основной теории."
+                        st.session_state.learning_stage = "main_theory"
+                        st.session_state.main_theory_step = 0
+
+                        main_theory = topic['main_theory']
+                        if isinstance(main_theory, dict):
+                            response += f"\n\n---\n\n**{main_theory['title']}**\n\n{main_theory['plan']}\n\n---\n\n"
+                            if main_theory['examples']:
+                                first_example = main_theory['examples'][0]
+                                response += f"{first_example['explanation']}\n\n**Задание:** {first_example['question']}"
                         else:
-                            response = handle_offtopic_question(question, "Готов продолжить? Напиши **'Понятно'** и переходим дальше!")
-                        
-                        st.markdown(response)
-                        st.session_state.messages.append({"role": "assistant", "content": response})
-                    
-                    elif stage == "intro_theory":
-                        # Проверяем практический вопрос из вводной теории с помощью LLM
+                            response += f"\n\n---\n\n{main_theory}"
+                    else:
+                        # Отвлеченный вопрос
+                        response = handle_offtopic_question(question, "Используй кнопки 'Разобрать ошибки' или 'К теории'.")
+
+                    st.markdown(response)
+                    st.session_state.messages.append({"role": "assistant", "content": response})
+
+                elif stage == "waiting_for_topic_selection":
+                    # Пользователь может задавать вопросы по конспектам или переходить к теории
+                    if "теория" in question.lower():
+                        response = "Отлично! Переходим к основной теории."
+                        st.session_state.learning_stage = "main_theory"
+                        st.session_state.main_theory_step = 0
+
+                        main_theory = topic['main_theory']
+                        if isinstance(main_theory, dict):
+                            response += f"\n\n---\n\n**{main_theory['title']}**\n\n{main_theory['plan']}\n\n---\n\n"
+                            if main_theory['examples']:
+                                first_example = main_theory['examples'][0]
+                                response += f"{first_example['explanation']}\n\n**Задание:** {first_example['question']}"
+                        else:
+                            response += f"\n\n---\n\n{main_theory}"
+                    else:
+                        # Используем агента для ответа на вопрос по изученным конспектам
+                        agent_executor = init_bot(model_choice, yandex_api_key, gemini_api_key)
+
+                        # Формируем контекст из всех просмотренных конспектов
+                        context_parts = []
+                        # Получаем все темы кроме тех, что еще остались в mistake_topics
+                        all_mistake_keys = ["дроби", "сложение_дробей", "НОК"]  # все возможные темы
+                        viewed_topics = [key for key in all_mistake_keys
+                                       if key not in st.session_state.get('mistake_topics', [])]
+
+                        for topic_key in viewed_topics:
+                            if topic_key in topic['prerequisite_notes']:
+                                note_data = topic['prerequisite_notes'][topic_key]
+                                context_parts.append(f"**{note_data['title']}**\n{note_data['content']}")
+
+                        context = "\n\n".join(context_parts) if context_parts else "Ты изучаешь дроби."
+
+                        # Создаем промпт для агента
+                        agent_prompt = f"""Контекст изученного материала:
+{context}
+
+Вопрос ученика: {question}
+
+Ответь на вопрос понятным языком для ребенка, используя изученный материал."""
+
+                        try:
+                            result = agent_executor.invoke({
+                                "input": agent_prompt,
+                                "chat_history": ""
+                            })
+                            response = result['output']
+                        except Exception as e:
+                            print(f"Agent error: {e}")
+                            response = f"Отличный вопрос! 😊 {question}\n\nПопробую объяснить проще: если у тебя есть конкретный вопрос по конспекту, задай его, и я помогу разобраться!"
+
+                    st.markdown(response)
+                    st.session_state.messages.append({"role": "assistant", "content": response, "show_theory_button": True})
+
+                elif stage == "waiting_after_notes":
+                    # После просмотра всех конспектов
+                    if "теория" in question.lower():
+                        response = "Отлично! Переходим к основной теории."
+                        st.session_state.learning_stage = "main_theory"
+                        st.session_state.main_theory_step = 0
+
+                        main_theory = topic['main_theory']
+                        if isinstance(main_theory, dict):
+                            response += f"\n\n---\n\n**{main_theory['title']}**\n\n{main_theory['plan']}\n\n---\n\n"
+                            if main_theory['examples']:
+                                first_example = main_theory['examples'][0]
+                                response += f"{first_example['explanation']}\n\n**Задание:** {first_example['question']}"
+                        else:
+                            response += f"\n\n---\n\n{main_theory}"
+                    elif "понятно" in question.lower() or "готов" in question.lower() or "да" in question.lower():
+                        response = "Отлично! Переходим к основной теории."
+                        st.session_state.learning_stage = "main_theory"
+                        st.session_state.main_theory_step = 0
+
+                        main_theory = topic['main_theory']
+                        if isinstance(main_theory, dict):
+                            response += f"\n\n---\n\n**{main_theory['title']}**\n\n{main_theory['plan']}\n\n---\n\n"
+                            if main_theory['examples']:
+                                first_example = main_theory['examples'][0]
+                                response += f"{first_example['explanation']}\n\n**Задание:** {first_example['question']}"
+                        else:
+                            response += f"\n\n---\n\n{main_theory}"
+                    else:
+                        # Используем агента для ответа на вопрос
+                        agent_executor = init_bot(model_choice, yandex_api_key, gemini_api_key)
+
+                        # Формируем контекст из изученных конспектов
+                        context_parts = []
+                        for topic_key in ["дроби", "сложение_дробей", "НОК"]:
+                            if topic_key in topic['prerequisite_notes']:
+                                note_data = topic['prerequisite_notes'][topic_key]
+                                context_parts.append(f"**{note_data['title']}**\n{note_data['content']}")
+
+                        context = "\n\n".join(context_parts)
+
+                        agent_prompt = f"""Контекст изученного материала:
+{context}
+
+Вопрос ученика: {question}
+
+Ответь на вопрос понятным языком для ребенка, используя изученный материал."""
+
+                        try:
+                            result = agent_executor.invoke({
+                                "input": agent_prompt,
+                                "chat_history": ""
+                            })
+                            response = result['output']
+                        except Exception as e:
+                            print(f"Agent error: {e}")
+                            response = f"Интересный вопрос! 😊 Давай продолжим обучение, и я отвечу на твои вопросы по ходу."
+
+                    st.markdown(response)
+                    st.session_state.messages.append({"role": "assistant", "content": response, "show_theory_button": True})
+
+                elif stage == "main_theory":
+                    # Обработка основной теории с примерами
+                    main_theory = topic['main_theory']
+                    if isinstance(main_theory, dict) and 'examples' in main_theory:
+                        current_example = main_theory['examples'][st.session_state.main_theory_step]
+
+                        # Проверяем ответ пользователя
                         is_correct = check_answer_with_llm(
                             question,
-                            "7/9",
+                            current_example['answer'],
                             model_choice,
                             yandex_api_key,
                             gemini_api_key,
-                            question_context="Сложи 2/9 + 5/9"
+                            question_context=current_example['question']
                         )
-                        
+
                         if is_correct:
-                            response = f"✅ Правильно! 2/9 + 5/9 = 7/9\n\nТеперь переходим к основной теории!\n\n---\n\n{topic['main_theory']}"
-                            st.session_state.learning_stage = "main_theory"
-                        else:
-                            # Проверяем, это попытка ответа или отвлеченный вопрос
-                            if any(char.isdigit() for char in question) and "/" in question:
-                                # Похоже на попытку ответить
-                                response = "🤔 Попробуй еще раз! Подсказка: складываем числители 2 + 5, знаменатель остается 9"
+                            # Правильно! Переходим к следующему примеру или к боссу
+                            response = f"✅ Верно! "
+                            st.session_state.main_theory_step += 1
+
+                            if st.session_state.main_theory_step < len(main_theory['examples']):
+                                # Есть еще примеры
+                                next_example = main_theory['examples'][st.session_state.main_theory_step]
+                                response += f"\n\n{next_example['explanation']}\n\n**Задание:** {next_example['question']}"
                             else:
-                                # Отвлеченный вопрос
-                                response = handle_offtopic_question(question, "**А теперь попробуй сам:** Сможешь сложить так же 2/9 + 5/9 = ?")
-                        
-                        st.markdown(response)
-                        st.session_state.messages.append({"role": "assistant", "content": response})
-                    
-                    elif stage == "main_theory":
-                        # После основной теории переходим к боссу
+                                # Все примеры пройдены, переходим к боссу
+                                correct_quiz = sum(st.session_state.quiz_results)
+                                variant_index = 0 if correct_quiz == len(topic['quiz']) else 1
+                                st.session_state.boss_variant = variant_index
+                                st.session_state.boss_step = 0
+                                st.session_state.learning_stage = "boss"
+
+                                variant = topic['boss']['variants'][variant_index]
+                                response += f"\n\n{topic['boss']['intro']}\n\n**{variant['success_message']}**\n\n**Задача:** {variant['tasks'][0]['question']}"
+                        else:
+                            # Неправильно - объясняем ошибку и даем подсказку
+                            response = f"🤔 Не совсем. Давай разберемся!\n\n**Подсказка:** {current_example['hint']}\n\nПопробуй еще раз решить: {current_example['question']}"
+                    else:
+                        # Старый формат - сразу к боссу
                         correct_quiz = sum(st.session_state.quiz_results)
                         variant_index = 0 if correct_quiz == len(topic['quiz']) else 1
                         st.session_state.boss_variant = variant_index
                         st.session_state.boss_step = 0
                         st.session_state.learning_stage = "boss"
-                        
+
                         variant = topic['boss']['variants'][variant_index]
                         response = f"{topic['boss']['intro']}\n\n**{variant['success_message']}**\n\n**Задача:** {variant['tasks'][0]['question']}"
-                        st.markdown(response)
-                        st.session_state.messages.append({"role": "assistant", "content": response})
-                    
-                    elif stage == "boss":
-                        # Обработка босса
-                        variant = topic['boss']['variants'][st.session_state.boss_variant]
-                        current_boss_step = st.session_state.boss_step
-                        
-                        if current_boss_step >= len(variant['tasks']):
-                            # Босс пройден
-                            response = f"🎉 Отлично! Все задачи решены!\n\n---\n\n{topic['final_summary']}"
-                            st.session_state.learning_stage = "finish"
-                        else:
-                            task = variant['tasks'][current_boss_step]
-                            # Используем LLM для проверки ответа
-                            is_correct = check_answer_with_llm(
-                                question,
-                                task['answer'],
-                                model_choice,
-                                yandex_api_key,
-                                gemini_api_key,
-                                question_context=task['question']
-                            )
-                            
-                            if is_correct:
-                                response = f"✅ Правильно! Ответ: {task['answer']}\n\n"
-                                st.session_state.boss_step += 1
-                                
-                                if st.session_state.boss_step < len(variant['tasks']):
-                                    next_task = variant['tasks'][st.session_state.boss_step]
-                                    response += f"**Следующая задача:** {next_task['question']}"
-                                else:
-                                    response += f"🎉 Все задачи решены!\n\n---\n\n{topic['final_summary']}"
-                                    st.session_state.learning_stage = "finish"
-                            else:
-                                # Проверяем, это попытка ответа или вопрос
-                                if any(char.isdigit() for char in question):
-                                    # Похоже на попытку ответить
-                                    response = f"🤔 Не совсем. **Подсказка:** {task['hint']}\n\nПопробуй еще раз!"
-                                else:
-                                    # Отвлеченный вопрос
-                                    response = handle_offtopic_question(question, f"**Задача:** {task['question']}")
-                        
-                        st.markdown(response)
-                        st.session_state.messages.append({"role": "assistant", "content": response})
-                    
-                    elif stage == "finish":
-                        # На финише отвечаем на любые вопросы более подробно
-                        try:
-                            history = "\n".join([
-                                f"User: {m['content']}" if m['role'] == 'user' else f"Assistant: {m['content']}"
-                                for m in st.session_state.messages[-6:]
-                            ])
-                            agent_executor = init_bot(model_choice, yandex_api_key, gemini_api_key)
-                            response_obj = agent_executor.invoke({"input": question, "chat_history": history})
-                            response = response_obj['output']
-                            response += "\n\n---\n\n💡 Хочешь изучить новую тему? Выбери её слева!"
-                        except:
-                            response = "Ты завершил тему! 🎉\n\nВыбери новую тему слева или задай свободный вопрос!"
-                        
-                        st.markdown(response)
-                        st.session_state.messages.append({"role": "assistant", "content": response})
 
-# Footer
-st.markdown("---")
-footer_text = {
-    "free": "💡 Задавай любые математические вопросы!",
-    "stepbystep": "💡 Выбери задачу и нажми '📋 Посмотреть схему'!",
-    "learn": "💡 Изучай темы по шагам с квизом и практикой!"
-}
-st.markdown(footer_text[st.session_state.mode])
+                    st.markdown(response)
+                    st.session_state.messages.append({"role": "assistant", "content": response})
+
+                elif stage == "boss":
+                    # Обработка босса
+                    variant = topic['boss']['variants'][st.session_state.boss_variant]
+                    current_boss_step = st.session_state.boss_step
+
+                    if current_boss_step >= len(variant['tasks']):
+                        # Босс пройден
+                        response = f"🎉 Отлично! Все задачи решены!\n\n---\n\n{topic['final_summary']}"
+                        st.session_state.learning_stage = "finish"
+                    else:
+                        task = variant['tasks'][current_boss_step]
+                        # Локальная проверка ответа
+                        is_correct = check_answer(question, task['answer'])
+
+                        if is_correct:
+                            response = f"✅ Правильно! Ответ: {task['answer']}\n\n"
+                            st.session_state.boss_step += 1
+
+                            if st.session_state.boss_step < len(variant['tasks']):
+                                next_task = variant['tasks'][st.session_state.boss_step]
+                                response += f"**Следующая задача:** {next_task['question']}"
+                            else:
+                                response += f"🎉 Все задачи решены!\n\n---\n\n{topic['final_summary']}"
+                                st.session_state.learning_stage = "finish"
+                        else:
+                            # Проверяем, это попытка ответа или вопрос
+                            if any(char.isdigit() for char in question):
+                                # Похоже на попытку ответить
+                                response = f"🤔 Не совсем. **Подсказка:** {task['hint']}\n\nПопробуй еще раз!"
+                            else:
+                                # Отвлеченный вопрос
+                                response = handle_offtopic_question(question, f"**Задача:** {task['question']}")
+
+                    st.markdown(response)
+                    st.session_state.messages.append({"role": "assistant", "content": response})
+
+                elif stage == "finish":
+                    response = "Ты завершил тему! 🎉\n\nВыбери новую тему слева или задай уточняющий вопрос по ней!"
+                    st.markdown(response)
+                    st.session_state.messages.append({"role": "assistant", "content": response})
+
+# Вставляем CSS, чтобы увеличить размер формул
+st.markdown(
+    """
+    <style>
+    .stMarkdown .katex {
+        font-size: 1.5em !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
