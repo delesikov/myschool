@@ -367,6 +367,10 @@ if question:
                 st.markdown(response)
                 st.session_state.messages.append({"role": "assistant", "content": response})
 
+                # Если есть быстрые ответы, делаем rerun чтобы кнопки появились
+                if st.session_state.quick_replies:
+                    st.rerun()
+
             elif st.session_state.current_topic is None:
                 response = "Пожалуйста, выбери тему из списка слева! 👈"
                 st.markdown(response)
