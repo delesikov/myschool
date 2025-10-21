@@ -104,6 +104,8 @@ if "session_start" not in st.session_state:
 # Быстрые ответы (кнопки)
 if "quick_replies" not in st.session_state:
     st.session_state.quick_replies = []
+if "pending_message" not in st.session_state:
+    st.session_state.pending_message = None
 
 # ============= UI =============
 
@@ -316,16 +318,20 @@ if st.session_state.quick_replies:
     for idx, reply in enumerate(st.session_state.quick_replies):
         with cols[idx]:
             if st.button(reply, key=f"quick_reply_{idx}", use_container_width=True):
-                # Добавляем выбранный ответ как сообщение пользователя
-                st.session_state.messages.append({"role": "user", "content": reply})
+                # Устанавливаем pending message для обработки
+                st.session_state.pending_message = reply
                 # Очищаем быстрые ответы
                 st.session_state.quick_replies = []
                 # Перезагружаем страницу для обработки ответа
                 st.rerun()
 
-# Обработка обычного ввода с клавиатуры
+# Обработка обычного ввода с клавиатуры или pending message
 question = st.chat_input("Напиши свой вопрос или ответ...")
-show_user_message = True
+
+# Проверяем pending message (из кнопки быстрого ответа)
+if st.session_state.pending_message:
+    question = st.session_state.pending_message
+    st.session_state.pending_message = None
 
 if question:
     # Очищаем быстрые ответы (пользователь ввел текст вручную)
