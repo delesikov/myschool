@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 import uuid
+import re
 from datetime import datetime
 from langchain_openai import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -12,6 +13,31 @@ from utils import format_schema, format_chat_to_markdown, get_chat_filename, sav
 load_dotenv()
 
 st.set_page_config(page_title="Математический помощник AI", page_icon="🧮", layout="wide")
+
+# ============= УТИЛИТЫ =============
+
+def parse_quick_replies(text):
+    """
+    Парсит маркер быстрых ответов из текста
+
+    Формат: [QUICK_REPLIES: "Вариант 1" | "Вариант 2" | ...]
+
+    Returns:
+        tuple: (cleaned_text, list_of_replies)
+    """
+    pattern = r'\[QUICK_REPLIES:\s*(.+?)\]'
+    match = re.search(pattern, text)
+
+    if match:
+        # Извлекаем варианты ответов
+        replies_str = match.group(1)
+        # Разбиваем по разделителю |
+        replies = [r.strip().strip('"\'') for r in replies_str.split('|')]
+        # Убираем маркер из текста
+        cleaned_text = re.sub(pattern, '', text).strip()
+        return cleaned_text, replies
+
+    return text, []
 
 # ============= ИНИЦИАЛИЗАЦИЯ АГЕНТА =============
 
@@ -74,6 +100,10 @@ if "session_id" not in st.session_state:
     st.session_state.session_id = str(uuid.uuid4())[:8]  # Короткий уникальный ID
 if "session_start" not in st.session_state:
     st.session_state.session_start = datetime.now().strftime('%d.%m.%Y %H:%M:%S')
+
+# Быстрые ответы (кнопки)
+if "quick_replies" not in st.session_state:
+    st.session_state.quick_replies = []
 
 # ============= UI =============
 
@@ -252,10 +282,14 @@ if st.session_state.mode == "study" and not st.session_state.study_mode_initiali
         response_obj = tutor_llm.invoke(full_prompt)
         welcome_message = response_obj.content if hasattr(response_obj, 'content') else str(response_obj)
 
+        # Парсим быстрые ответы
+        cleaned_message, quick_replies = parse_quick_replies(welcome_message)
+
         st.session_state.messages.append({
             "role": "assistant",
-            "content": welcome_message
+            "content": cleaned_message
         })
+        st.session_state.quick_replies = quick_replies
     except Exception as e:
         print(f"Study Mode init error: {e}")
         # Фоллбек на простое приветствие
@@ -263,6 +297,7 @@ if st.session_state.mode == "study" and not st.session_state.study_mode_initiali
             "role": "assistant",
             "content": "Привет! Я помогу тебе разобраться с любой темой 📚 Скажи, пожалуйста, в каком ты классе и что сегодня будем изучать?"
         })
+        st.session_state.quick_replies = []
 
     st.session_state.study_mode_initialized = True
     st.rerun()
@@ -273,11 +308,29 @@ for idx, message in enumerate(st.session_state.messages):
         # Рендерим содержимое сообщения, поддерживая крупный LaTeX
         st.markdown(message["content"], unsafe_allow_html=True)
 
+# Быстрые ответы (кнопки)
+if st.session_state.quick_replies:
+    st.markdown("**💬 Быстрые ответы:**")
+    cols = st.columns(len(st.session_state.quick_replies))
+
+    for idx, reply in enumerate(st.session_state.quick_replies):
+        with cols[idx]:
+            if st.button(reply, key=f"quick_reply_{idx}", use_container_width=True):
+                # Добавляем выбранный ответ как сообщение пользователя
+                st.session_state.messages.append({"role": "user", "content": reply})
+                # Очищаем быстрые ответы
+                st.session_state.quick_replies = []
+                # Перезагружаем страницу для обработки ответа
+                st.rerun()
+
 # Обработка обычного ввода с клавиатуры
 question = st.chat_input("Напиши свой вопрос или ответ...")
 show_user_message = True
 
 if question:
+    # Очищаем быстрые ответы (пользователь ввел текст вручную)
+    st.session_state.quick_replies = []
+
     # Сохраняем сообщение пользователя
     st.session_state.messages.append({"role": "user", "content": question})
     with st.chat_message("user"):
@@ -302,9 +355,14 @@ if question:
                 try:
                     response_obj = tutor_llm.invoke(full_prompt)
                     response = response_obj.content if hasattr(response_obj, 'content') else str(response_obj)
+
+                    # Парсим быстрые ответы
+                    response, quick_replies = parse_quick_replies(response)
+                    st.session_state.quick_replies = quick_replies
                 except Exception as e:
                     print(f"Tutor error: {e}")
                     response = "Извини, произошла ошибка. Попробуй переформулировать вопрос."
+                    st.session_state.quick_replies = []
 
                 st.markdown(response)
                 st.session_state.messages.append({"role": "assistant", "content": response})
