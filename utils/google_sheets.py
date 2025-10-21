@@ -53,6 +53,8 @@ def save_chat_to_sheets(
     sheet_url: str = None,
     sheet_name: str = None,
     topic_title: str = None,
+    session_id: str = None,
+    session_start: str = None,
     credentials_json: str = None
 ) -> bool:
     """
@@ -63,13 +65,15 @@ def save_chat_to_sheets(
         sheet_url: URL Google Sheets (необязательно, можно использовать sheet_name)
         sheet_name: Название таблицы (если не указан sheet_url)
         topic_title: Название темы
+        session_id: Уникальный ID сессии
+        session_start: Время начала сессии
         credentials_json: JSON с credentials
 
     Returns:
         True если успешно, False если ошибка
 
     Структура таблицы:
-    | Дата | Время | Тема | Роль | Сообщение |
+    | Session ID | Начало сессии | Дата | Время | Тема | Роль | Сообщение |
     """
     try:
         # Получаем клиент
@@ -91,7 +95,7 @@ def save_chat_to_sheets(
         # Проверяем, есть ли заголовки
         if sheet.row_count == 0 or not sheet.row_values(1):
             # Добавляем заголовки
-            headers = ['Дата', 'Время', 'Тема', 'Роль', 'Сообщение']
+            headers = ['Session ID', 'Начало сессии', 'Дата', 'Время', 'Тема', 'Роль', 'Сообщение']
             sheet.append_row(headers)
 
         # Подготавливаем данные для вставки
@@ -108,7 +112,15 @@ def save_chat_to_sheets(
             if len(content) > 40000:
                 content = content[:40000] + "... (обрезано)"
 
-            row = [date_str, time_str, topic_title or "-", role, content]
+            row = [
+                session_id or "-",           # Session ID
+                session_start or "-",        # Начало сессии
+                date_str,                    # Дата сообщения
+                time_str,                    # Время сообщения
+                topic_title or "-",          # Тема
+                role,                        # Роль
+                content                      # Сообщение
+            ]
             rows_to_add.append(row)
 
         # Добавляем все строки одним запросом (эффективнее)
@@ -150,11 +162,11 @@ def create_new_sheet(sheet_name: str, credentials_json: str = None) -> str:
 
         # Добавляем заголовки
         sheet = spreadsheet.sheet1
-        headers = ['Дата', 'Время', 'Тема', 'Роль', 'Сообщение']
+        headers = ['Session ID', 'Начало сессии', 'Дата', 'Время', 'Тема', 'Роль', 'Сообщение']
         sheet.append_row(headers)
 
         # Форматируем заголовки (жирный шрифт)
-        sheet.format('A1:E1', {
+        sheet.format('A1:G1', {
             'textFormat': {'bold': True},
             'backgroundColor': {'red': 0.9, 'green': 0.9, 'blue': 0.9}
         })

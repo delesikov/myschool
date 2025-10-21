@@ -1,5 +1,7 @@
 import streamlit as st
 import os
+import uuid
+from datetime import datetime
 from langchain_openai import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
 from dotenv import load_dotenv
@@ -67,6 +69,12 @@ if "study_mode_initialized" not in st.session_state:
 if "needs_feedback" not in st.session_state:
     st.session_state.needs_feedback = False
 
+# ID сессии и метаданные для Google Sheets
+if "session_id" not in st.session_state:
+    st.session_state.session_id = str(uuid.uuid4())[:8]  # Короткий уникальный ID
+if "session_start" not in st.session_state:
+    st.session_state.session_start = datetime.now().strftime('%d.%m.%Y %H:%M:%S')
+
 # ============= UI =============
 
 # Заголовок в зависимости от режима
@@ -100,6 +108,9 @@ with st.sidebar:
         st.session_state.current_topic = None
         st.session_state.study_mode_initialized = False
         st.session_state.needs_feedback = False
+        # Новая сессия
+        st.session_state.session_id = str(uuid.uuid4())[:8]
+        st.session_state.session_start = datetime.now().strftime('%d.%m.%Y %H:%M:%S')
     
     st.markdown("---")
     
@@ -124,6 +135,9 @@ with st.sidebar:
             if st.button(topic_data['title'], key=f"topic_{topic_id}", use_container_width=True):
                 st.session_state.current_topic = topic_id
                 st.session_state.needs_feedback = False  # Сбрасываем при выборе новой темы
+                # Новая сессия
+                st.session_state.session_id = str(uuid.uuid4())[:8]
+                st.session_state.session_start = datetime.now().strftime('%d.%m.%Y %H:%M:%S')
 
                 # Приветственное сообщение с планом урока
                 welcome_message = f"**{topic_data['title']}**\n\n{topic_data.get('description', '')}\n\n"
@@ -152,6 +166,9 @@ with st.sidebar:
         if st.button("🆕 Начать новую тему", use_container_width=True):
             st.session_state.messages = []
             st.session_state.study_mode_initialized = False
+            # Новая сессия
+            st.session_state.session_id = str(uuid.uuid4())[:8]
+            st.session_state.session_start = datetime.now().strftime('%d.%m.%Y %H:%M:%S')
             st.rerun()
     
     st.markdown("---")
@@ -161,6 +178,9 @@ with st.sidebar:
         st.session_state.current_topic = None
         st.session_state.study_mode_initialized = False
         st.session_state.needs_feedback = False
+        # Новая сессия
+        st.session_state.session_id = str(uuid.uuid4())[:8]
+        st.session_state.session_start = datetime.now().strftime('%d.%m.%Y %H:%M:%S')
         st.rerun()
 
     # Кнопка экспорта диалога
@@ -191,11 +211,13 @@ with st.sidebar:
             with st.spinner("Сохраняю в Google Sheets..."):
                 success = save_chat_to_sheets(
                     messages=st.session_state.messages,
-                    topic_title=topic_title
+                    topic_title=topic_title,
+                    session_id=st.session_state.session_id,
+                    session_start=st.session_state.session_start
                 )
 
                 if success:
-                    st.success("✅ Диалог сохранен в Google Sheets!")
+                    st.success(f"✅ Диалог сохранен в Google Sheets! (Session ID: {st.session_state.session_id})")
                 else:
                     st.error("❌ Ошибка сохранения. Проверьте настройки Google Sheets в .env файле")
                     st.info("💡 Инструкция по настройке в файле GOOGLE_SHEETS_SETUP.md")
