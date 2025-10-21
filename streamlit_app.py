@@ -240,8 +240,32 @@ mode_badges = {
 }
 st.info(f"**Текущий режим:** {mode_badges[st.session_state.mode]}")
 
-# Инициализация Study Mode - модель сама начнет диалог по промпту при первом сообщении
-# Заготовленное приветствие убрано, чтобы не дублировать промпт
+# Инициализация Study Mode - модель сама генерирует первое приветствие
+if st.session_state.mode == "study" and not st.session_state.study_mode_initialized and len(st.session_state.messages) == 0:
+    # Вызываем модель с пустым input - она сама начнет диалог согласно TUTOR_PROMPT
+    tutor_llm = init_tutor(model_choice, yandex_api_key, gemini_api_key)
+
+    # Формируем промпт с пустой историей и пустым input
+    full_prompt = TUTOR_PROMPT.replace("{chat_history}", "").replace("{input}", "")
+
+    try:
+        response_obj = tutor_llm.invoke(full_prompt)
+        welcome_message = response_obj.content if hasattr(response_obj, 'content') else str(response_obj)
+
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": welcome_message
+        })
+    except Exception as e:
+        print(f"Study Mode init error: {e}")
+        # Фоллбек на простое приветствие
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": "Привет! Я помогу тебе разобраться с любой темой 📚 Скажи, пожалуйста, в каком ты классе и что сегодня будем изучать?"
+        })
+
+    st.session_state.study_mode_initialized = True
+    st.rerun()
 
 # История сообщений
 for idx, message in enumerate(st.session_state.messages):
