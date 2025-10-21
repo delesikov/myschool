@@ -5,3 +5,6 @@ numexpr>=2.10.0
 sympy==1.12
 python-dotenv==1.0.0
 streamlit==1.32.0
+google-auth==2.41.1
+google-auth-oauthlib==1.2.2
+gspread==6.2.1

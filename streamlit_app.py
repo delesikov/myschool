@@ -5,7 +5,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from dotenv import load_dotenv
 from data import TOPICS  # Новый формат схем
 from prompts import TUTOR_PROMPT, LEARN_MODE_PROMPT, FEEDBACK_PROMPT
-from utils import format_schema, format_chat_to_markdown, get_chat_filename
+from utils import format_schema, format_chat_to_markdown, get_chat_filename, save_chat_to_sheets
 
 load_dotenv()
 
@@ -185,6 +185,20 @@ with st.sidebar:
             mime="text/markdown",
             use_container_width=True
         )
+
+        # Кнопка сохранения в Google Sheets
+        if st.button("📊 Сохранить в Google Sheets", use_container_width=True):
+            with st.spinner("Сохраняю в Google Sheets..."):
+                success = save_chat_to_sheets(
+                    messages=st.session_state.messages,
+                    topic_title=topic_title
+                )
+
+                if success:
+                    st.success("✅ Диалог сохранен в Google Sheets!")
+                else:
+                    st.error("❌ Ошибка сохранения. Проверьте настройки Google Sheets в .env файле")
+                    st.info("💡 Инструкция по настройке в файле GOOGLE_SHEETS_SETUP.md")
 
 # ============= ПРОВЕРКА API =============
 
