@@ -5,7 +5,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from dotenv import load_dotenv
 from data import TOPICS  # Новый формат схем
 from prompts import TUTOR_PROMPT, LEARN_MODE_PROMPT, FEEDBACK_PROMPT
-from utils import format_schema
+from utils import format_schema, format_chat_to_markdown, get_chat_filename
 
 load_dotenv()
 
@@ -162,6 +162,29 @@ with st.sidebar:
         st.session_state.study_mode_initialized = False
         st.session_state.needs_feedback = False
         st.rerun()
+
+    # Кнопка экспорта диалога
+    if len(st.session_state.messages) > 0:
+        st.markdown("---")
+        st.markdown("**💾 Экспорт диалога**")
+
+        # Получаем название темы если есть
+        topic_title = None
+        if st.session_state.mode == "learn" and st.session_state.current_topic:
+            topic_title = TOPICS[st.session_state.current_topic].get('title', 'Тема')
+
+        # Форматируем диалог
+        chat_markdown = format_chat_to_markdown(st.session_state.messages, topic_title)
+        filename = get_chat_filename(topic_title, "md")
+
+        # Кнопка скачивания
+        st.download_button(
+            label="📥 Скачать диалог (Markdown)",
+            data=chat_markdown,
+            file_name=filename,
+            mime="text/markdown",
+            use_container_width=True
+        )
 
 # ============= ПРОВЕРКА API =============
 
