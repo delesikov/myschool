@@ -6,7 +6,7 @@ from datetime import datetime
 from langchain_openai import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
 from dotenv import load_dotenv
-from data import TOPICS  # Новый формат схем
+from data import TOPICS, get_grade_instruction  # Новый формат схем
 from prompts import TUTOR_PROMPT, LEARN_MODE_PROMPT, FEEDBACK_PROMPT
 from utils import format_schema, format_chat_to_markdown, get_chat_filename, save_chat_to_sheets
 
@@ -38,6 +38,36 @@ def parse_quick_replies(text):
         return cleaned_text, replies
 
     return text, []
+
+
+def check_answer_correctness(response_text):
+    """
+    Определяет правильность ответа по тексту ответа AI
+
+    Args:
+        response_text: Текст ответа AI
+
+    Returns:
+        bool: True если ответ правильный, False если неправильный, None если не удалось определить
+    """
+    response_lower = response_text.lower()
+
+    # Ищем явные маркеры правильности
+    correct_markers = ['правильно', 'верно', 'точно', 'отлично', 'молодец', 'именно так', 'да, это правильный ответ']
+    incorrect_markers = ['неправильно', 'неверно', 'ошибка', 'не совсем', 'почти', 'к сожалению, нет']
+
+    # Проверяем первые 100 символов ответа (обычно там содержится оценка)
+    first_part = response_lower[:150]
+
+    has_correct = any(marker in first_part for marker in correct_markers)
+    has_incorrect = any(marker in first_part for marker in incorrect_markers)
+
+    if has_correct and not has_incorrect:
+        return True
+    elif has_incorrect and not has_correct:
+        return False
+
+    return None
 
 # ============= ИНИЦИАЛИЗАЦИЯ АГЕНТА =============
 
@@ -107,6 +137,16 @@ if "quick_replies" not in st.session_state:
 if "pending_message" not in st.session_state:
     st.session_state.pending_message = None
 
+# Квиз - сохранение состояния ответов
+if "quiz_state" not in st.session_state:
+    st.session_state.quiz_state = {}  # {message_index: {"selected": "ответ", "correct": True/False, "replies": [...]}}
+if "pending_quiz_answer" not in st.session_state:
+    st.session_state.pending_quiz_answer = None
+
+# Класс ученика (по умолчанию 5-6)
+if "grade" not in st.session_state:
+    st.session_state.grade = "5-6"
+
 # ============= UI =============
 
 # Заголовок в зависимости от режима
@@ -140,6 +180,7 @@ with st.sidebar:
         st.session_state.current_topic = None
         st.session_state.study_mode_initialized = False
         st.session_state.needs_feedback = False
+        st.session_state.quiz_state = {}  # Очищаем состояние квиза
         # Новая сессия
         st.session_state.session_id = str(uuid.uuid4())[:8]
         st.session_state.session_start = datetime.now().strftime('%d.%m.%Y %H:%M:%S')
@@ -156,7 +197,21 @@ with st.sidebar:
         gemini_api_key = st.text_input("Google API ключ", value=os.getenv("GOOGLE_API_KEY", ""), type="password")
         yandex_api_key = ""
         st.markdown("[Получить ключ →](https://aistudio.google.com/apikey)")
-    
+
+    st.markdown("---")
+
+    # Выбор класса ученика
+    grade = st.selectbox(
+        "🎒 В каком ты классе?",
+        ["1-4", "5-6", "7-8", "9-11"],
+        index=["1-4", "5-6", "7-8", "9-11"].index(st.session_state.grade),
+        key="grade_selector"
+    )
+
+    # Обновляем session_state если класс изменился
+    if grade != st.session_state.grade:
+        st.session_state.grade = grade
+
     st.markdown("---")
 
     # РЕЖИМ-ЗАВИСИМЫЙ КОНТЕНТ
@@ -167,6 +222,7 @@ with st.sidebar:
             if st.button(topic_data['title'], key=f"topic_{topic_id}", use_container_width=True):
                 st.session_state.current_topic = topic_id
                 st.session_state.needs_feedback = False  # Сбрасываем при выборе новой темы
+                st.session_state.quiz_state = {}  # Очищаем состояние квиза
                 # Новая сессия
                 st.session_state.session_id = str(uuid.uuid4())[:8]
                 st.session_state.session_start = datetime.now().strftime('%d.%m.%Y %H:%M:%S')
@@ -185,31 +241,14 @@ with st.sidebar:
                     "content": welcome_message
                 }]
                 st.rerun()
-    else:
-        # Study Mode - свободный тьютор
-        st.header("🎓 Study Mode")
-        st.markdown("*Задай любой вопрос по школьным предметам*")
-        st.markdown("---")
-        st.markdown("**Примеры вопросов:**")
-        st.markdown("- Помоги разобраться с дробями")
-        st.markdown("- Объясни квадратные уравнения")
-        st.markdown("- Реши задачу по физике")
-
-        if st.button("🆕 Начать новую тему", use_container_width=True):
-            st.session_state.messages = []
-            st.session_state.study_mode_initialized = False
-            # Новая сессия
-            st.session_state.session_id = str(uuid.uuid4())[:8]
-            st.session_state.session_start = datetime.now().strftime('%d.%m.%Y %H:%M:%S')
-            st.rerun()
-    
     st.markdown("---")
-    
-    if st.button("🗑️ Начать заново", use_container_width=True):
+
+    if st.button("🔄 Начать заново", use_container_width=True):
         st.session_state.messages = []
         st.session_state.current_topic = None
         st.session_state.study_mode_initialized = False
         st.session_state.needs_feedback = False
+        st.session_state.quiz_state = {}  # Очищаем состояние квиза
         # Новая сессия
         st.session_state.session_id = str(uuid.uuid4())[:8]
         st.session_state.session_start = datetime.now().strftime('%d.%m.%Y %H:%M:%S')
@@ -277,8 +316,11 @@ if st.session_state.mode == "study" and not st.session_state.study_mode_initiali
     # Вызываем модель с пустым input - она сама начнет диалог согласно TUTOR_PROMPT
     tutor_llm = init_tutor(model_choice, yandex_api_key, gemini_api_key)
 
+    # Получаем инструкции для выбранного класса
+    grade_instructions = get_grade_instruction(st.session_state.grade)
+
     # Формируем промпт с пустой историей и пустым input
-    full_prompt = TUTOR_PROMPT.replace("{chat_history}", "").replace("{input}", "")
+    full_prompt = TUTOR_PROMPT.replace("{grade_instructions}", grade_instructions).replace("{chat_history}", "").replace("{input}", "")
 
     try:
         response_obj = tutor_llm.invoke(full_prompt)
@@ -310,18 +352,67 @@ for idx, message in enumerate(st.session_state.messages):
         # Рендерим содержимое сообщения, поддерживая крупный LaTeX
         st.markdown(message["content"], unsafe_allow_html=True)
 
-# Быстрые ответы (кнопки)
+    # Проверяем есть ли сохраненные кнопки квиза для этого сообщения
+    # idx+1 потому что quiz_state сохраняется по индексу после добавления вопроса пользователя
+    quiz_data = st.session_state.quiz_state.get(idx + 1)
+    if quiz_data:
+        # CSS для подсветки
+        st.markdown("""
+        <style>
+        .quiz-button {
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            border: 2px solid #e0e0e0;
+            background-color: #f5f5f5;
+            cursor: default;
+            text-align: center;
+            margin: 0.25rem;
+            font-size: 1rem;
+        }
+        .quiz-button-correct {
+            background-color: #4caf50 !important;
+            color: white !important;
+            border-color: #45a049 !important;
+        }
+        .quiz-button-incorrect {
+            background-color: #f44336 !important;
+            color: white !important;
+            border-color: #da190b !important;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+
+        # Рендерим кнопки с подсветкой через HTML
+        cols = st.columns(len(quiz_data["replies"]))
+        for btn_idx, reply in enumerate(quiz_data["replies"]):
+            with cols[btn_idx]:
+                # Определяем класс кнопки
+                if reply == quiz_data["selected"]:
+                    if quiz_data["correct"]:
+                        button_class = "quiz-button quiz-button-correct"
+                    else:
+                        button_class = "quiz-button quiz-button-incorrect"
+                else:
+                    button_class = "quiz-button"
+
+                st.markdown(f'<div class="{button_class}">{reply}</div>', unsafe_allow_html=True)
+
+# Быстрые ответы (кнопки) - только для текущего вопроса
 if st.session_state.quick_replies:
-    st.markdown("**💬 Быстрые ответы:**")
+    # Обычные кликабельные кнопки (пока пользователь не выбрал)
+    current_msg_idx = len(st.session_state.messages)
     cols = st.columns(len(st.session_state.quick_replies))
 
     for idx, reply in enumerate(st.session_state.quick_replies):
         with cols[idx]:
-            if st.button(reply, key=f"quick_reply_{idx}", use_container_width=True):
-                # Устанавливаем pending message для обработки
+            if st.button(reply, key=f"quick_reply_{idx}_{current_msg_idx}", use_container_width=True):
+                # Сохраняем выбор для последующей обработки
                 st.session_state.pending_message = reply
-                # Очищаем быстрые ответы
-                st.session_state.quick_replies = []
+                st.session_state.pending_quiz_answer = {
+                    "message_idx": current_msg_idx,
+                    "selected": reply,
+                    "replies": st.session_state.quick_replies.copy()
+                }
                 # Перезагружаем страницу для обработки ответа
                 st.rerun()
 
@@ -334,9 +425,6 @@ if st.session_state.pending_message:
     st.session_state.pending_message = None
 
 if question:
-    # Очищаем быстрые ответы (пользователь ввел текст вручную)
-    st.session_state.quick_replies = []
-
     # Сохраняем сообщение пользователя
     st.session_state.messages.append({"role": "user", "content": question})
     with st.chat_message("user"):
@@ -349,6 +437,9 @@ if question:
                 # Study Mode - свободный тьютор (прямой вызов LLM без агента)
                 tutor_llm = init_tutor(model_choice, yandex_api_key, gemini_api_key)
 
+                # Получаем инструкции для выбранного класса
+                grade_instructions = get_grade_instruction(st.session_state.grade)
+
                 # Формируем полный промпт с историей чата
                 chat_history = "\n".join([
                     f"{'Ученик' if msg['role'] == 'user' else 'Тьютор'}: {msg['content']}"
@@ -356,7 +447,7 @@ if question:
                 ])
 
                 # Формируем полное сообщение для LLM
-                full_prompt = TUTOR_PROMPT.replace("{chat_history}", chat_history).replace("{input}", question)
+                full_prompt = TUTOR_PROMPT.replace("{grade_instructions}", grade_instructions).replace("{chat_history}", chat_history).replace("{input}", question)
 
                 try:
                     response_obj = tutor_llm.invoke(full_prompt)
@@ -373,6 +464,22 @@ if question:
                 st.markdown(response)
                 st.session_state.messages.append({"role": "assistant", "content": response})
 
+                # Проверяем был ли это ответ на квиз
+                if st.session_state.pending_quiz_answer:
+                    quiz_info = st.session_state.pending_quiz_answer
+                    # Определяем правильность ответа
+                    is_correct = check_answer_correctness(response)
+
+                    # Сохраняем результат в quiz_state
+                    st.session_state.quiz_state[quiz_info["message_idx"]] = {
+                        "selected": quiz_info["selected"],
+                        "correct": is_correct if is_correct is not None else False,
+                        "replies": quiz_info["replies"]
+                    }
+
+                    # Очищаем pending_quiz_answer
+                    st.session_state.pending_quiz_answer = None
+
                 # Если есть быстрые ответы, делаем rerun чтобы кнопки появились
                 if st.session_state.quick_replies:
                     st.rerun()
@@ -386,6 +493,9 @@ if question:
                 topic = TOPICS[st.session_state.current_topic]
                 learn_llm = init_tutor(model_choice, yandex_api_key, gemini_api_key)
 
+                # Получаем инструкции для выбранного класса
+                grade_instructions = get_grade_instruction(st.session_state.grade)
+
                 # Форматируем схему темы
                 schema = format_schema(topic)
 
@@ -396,7 +506,7 @@ if question:
                 ])
 
                 # Формируем полный промпт
-                full_prompt = LEARN_MODE_PROMPT.replace("{schema}", schema).replace("{chat_history}", chat_history).replace("{input}", question)
+                full_prompt = LEARN_MODE_PROMPT.replace("{grade_instructions}", grade_instructions).replace("{schema}", schema).replace("{chat_history}", chat_history).replace("{input}", question)
 
                 try:
                     response_obj = learn_llm.invoke(full_prompt)
